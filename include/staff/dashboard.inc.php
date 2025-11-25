@@ -8,8 +8,10 @@ $plots = $report->getPlotData();
 <script type="text/javascript" src="js/g.line-min.js"></script>
 <script type="text/javascript" src="js/g.dot-min.js"></script>
 <script type="text/javascript" src="js/dashboard.inc.js"></script>
+<script type="text/javascript" src="js/dashboard-tabs.js"></script>
 
 <link rel="stylesheet" type="text/css" href="css/dashboard.css"/>
+<link rel="stylesheet" type="text/css" href="css/dashboard-tabs.css"/>
 
 <form method="post" action="dashboard.php">
 <div id="basic_search">
@@ -165,6 +167,80 @@ foreach ($groups as $g=>$desc) {
 }
 ?>
 </form>
+
+<!-- Custom Dashboard Tabs - Departments, Help Topics, Agents -->
+<div id="dashboard-custom-tabs-container">
+    <div class="dashboard-custom-tabs">
+        <div class="tabs-header">
+            <h4><i class="icon-dashboard"></i> <?php echo __('Quick Access Filters'); ?></h4>
+            <div class="tab-buttons">
+                <button class="tab-btn active" data-tab="departments">
+                    <i class="icon-folder-close"></i>
+                    <span><?php echo __('Departments'); ?></span>
+                </button>
+                <button class="tab-btn" data-tab="topics">
+                    <i class="icon-question-sign"></i>
+                    <span><?php echo __('Help Topics'); ?></span>
+                </button>
+                <button class="tab-btn" data-tab="agents">
+                    <i class="icon-user"></i>
+                    <span><?php echo __('Agents'); ?></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Departments Tab -->
+        <div class="tab-content-panel" id="tab-departments" style="display: block;">
+            <div class="tab-panel-header">
+                <i class="icon-folder-open"></i>
+                <h5><?php echo __('Select a Department to View Tickets'); ?></h5>
+            </div>
+            <div id="dept-list">
+                <div class="results-loading">
+                    <i class="icon-spinner icon-spin icon-2x"></i>
+                    <p><?php echo __('Loading departments...'); ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Topics Tab -->
+        <div class="tab-content-panel" id="tab-topics" style="display: none;">
+            <div class="tab-panel-header">
+                <i class="icon-question-sign"></i>
+                <h5><?php echo __('Select a Help Topic to View Tickets'); ?></h5>
+            </div>
+            <div id="topic-list">
+                <div class="results-loading">
+                    <i class="icon-spinner icon-spin icon-2x"></i>
+                    <p><?php echo __('Loading help topics...'); ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents Tab -->
+        <div class="tab-content-panel" id="tab-agents" style="display: none;">
+            <div class="tab-panel-header">
+                <i class="icon-user"></i>
+                <h5><?php echo __('Select an Agent to View Replies'); ?></h5>
+            </div>
+            <div id="agent-list">
+                <div class="results-loading">
+                    <i class="icon-spinner icon-spin icon-2x"></i>
+                    <p><?php echo __('Loading agents...'); ?></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Panel (shows above when item clicked) -->
+    <div id="dashboard-results-panel">
+        <div id="dashboard-results-content">
+            <!-- Dynamic content loaded via JavaScript -->
+        </div>
+    </div>
+</div>
+<!-- End Custom Dashboard Tabs -->
+
 <script>
     $.drawPlots(<?php echo JsonDataEncoder::encode($report->getPlotData()); ?>);
     // Set Selected Period For Dashboard Stats and Export

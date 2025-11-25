@@ -318,6 +318,24 @@ $dispatcher = patterns('',
         url_post('^/(?P<id>\d+)/stash$', 'stashFormData'),
         url_post('^/(?P<id>\d+)/auth/config/(?P<type>\w+)/delete$', 'deleteToken'),
         url('^/(?P<id>\d+)/auth/config/(?P<type>\w+)/(?P<auth>.+)$', 'configureAuth'),
+    )),
+    // Custom Dashboard Tabs API
+    url('^/dashboard/', patterns('ajax.dashboard.php:DashboardAjaxAPI',
+        // Departments
+        url_get('^departments$', 'getDepartments'),
+        url_get('^departments/(?P<dept_id>\d+)/tickets$', 'getTicketsByDepartment'),
+        url_get('^departments/(?P<dept_id>\d+)/export/csv$', 'exportDepartmentCSV'),
+        url_get('^departments/(?P<dept_id>\d+)/export/pdf$', 'exportDepartmentPDF'),
+        // Help Topics
+        url_get('^topics$', 'getHelpTopics'),
+        url_get('^topics/(?P<topic_id>\d+)/tickets$', 'getTicketsByTopic'),
+        url_get('^topics/(?P<topic_id>\d+)/export/csv$', 'exportTopicCSV'),
+        url_get('^topics/(?P<topic_id>\d+)/export/pdf$', 'exportTopicPDF'),
+        // Agents
+        url_get('^agents$', 'getAgents'),
+        url_get('^agents/(?P<staff_id>\d+)/replies$', 'getAgentReplies'),
+        url_get('^agents/(?P<staff_id>\d+)/export/csv$', 'exportAgentCSV'),
+        url_get('^agents/(?P<staff_id>\d+)/export/pdf$', 'exportAgentPDF')
     ))
 );
 
