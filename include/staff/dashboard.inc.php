@@ -8,10 +8,10 @@ $plots = $report->getPlotData();
 <script type="text/javascript" src="js/g.line-min.js"></script>
 <script type="text/javascript" src="js/g.dot-min.js"></script>
 <script type="text/javascript" src="js/dashboard.inc.js"></script>
-<script type="text/javascript" src="js/dashboard-tabs.js"></script>
+<script type="text/javascript" src="js/dashboard-tabs.js?v=<?php echo time(); ?>"></script>
 
 <link rel="stylesheet" type="text/css" href="css/dashboard.css"/>
-<link rel="stylesheet" type="text/css" href="css/dashboard-tabs.css"/>
+<link rel="stylesheet" type="text/css" href="css/dashboard-tabs.css?v=<?php echo time(); ?>"/>
 
 <form method="post" action="dashboard.php">
 <div id="basic_search">
@@ -169,6 +169,8 @@ foreach ($groups as $g=>$desc) {
 </form>
 
 <!-- Custom Dashboard Tabs - Departments, Help Topics, Agents -->
+<?php if ($thisstaff && $thisstaff->isAdmin()) { ?>
+
 <div id="dashboard-custom-tabs-container">
     <div class="dashboard-custom-tabs">
         <div class="tabs-header">
@@ -240,6 +242,7 @@ foreach ($groups as $g=>$desc) {
     </div>
 </div>
 <!-- End Custom Dashboard Tabs -->
+<?php } ?>
 
 <script>
     $.drawPlots(<?php echo JsonDataEncoder::encode($report->getPlotData()); ?>);

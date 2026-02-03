@@ -220,6 +220,8 @@ class DashboardAjaxAPI extends AjaxController {
                 e.id AS entry_id,
                 t.number AS ticket_number,
                 t.ticket_id,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
                 e.body AS reply_message,
                 e.created AS reply_date
@@ -227,6 +229,7 @@ class DashboardAjaxAPI extends AjaxController {
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
             LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
             LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE e.type = 'R'
             AND e.staff_id = " . db_input($staff_id) . "
             ORDER BY e.created DESC
@@ -243,8 +246,10 @@ class DashboardAjaxAPI extends AjaxController {
                     'entry_id' => $row['entry_id'],
                     'ticket_id' => $row['ticket_id'],
                     'ticket_number' => $row['ticket_number'],
+                    'ticket_subject' => Format::truncate($row['ticket_subject'], 50),
                     'agent_name' => $row['agent_name'],
                     'reply_message' => $body,
+                    'ticket_created' => Format::datetime($row['ticket_created']),
                     'reply_date' => Format::datetime($row['reply_date'])
                 );
             }
@@ -407,6 +412,8 @@ class DashboardAjaxAPI extends AjaxController {
         $sql = "SELECT 
                 e.id AS entry_id,
                 t.number AS ticket_number,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
                 e.body AS reply_message,
                 e.created AS reply_date
@@ -414,15 +421,18 @@ class DashboardAjaxAPI extends AjaxController {
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
             LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
             LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE e.type = 'R'
             AND e.staff_id = " . db_input($staff_id) . "
             ORDER BY e.created DESC";
 
         $headers = array(
             __('Entry ID'),
-            __('Ticket Number'),
-            __('Agent Name'),
+            __('Ticket #'),
+            __('Agent'),
+            __('Subject'),
             __('Reply Message'),
+            __('Ticket Creation Date'),
             __('Reply Date')
         );
 
@@ -439,7 +449,9 @@ class DashboardAjaxAPI extends AjaxController {
                     $row['entry_id'],
                     $row['ticket_number'],
                     $row['agent_name'],
+                    $row['ticket_subject'],
                     $body,
+                    Format::datetime($row['ticket_created']),
                     Format::datetime($row['reply_date'])
                 ));
             }
@@ -565,6 +577,8 @@ class DashboardAjaxAPI extends AjaxController {
         $sql = "SELECT 
                 e.id AS entry_id,
                 t.number AS ticket_number,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
                 SUBSTRING(e.body, 1, 200) AS reply_message,
                 e.created AS reply_date
@@ -572,6 +586,7 @@ class DashboardAjaxAPI extends AjaxController {
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
             LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
             LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE e.type = 'R'
             AND e.staff_id = " . db_input($staff_id) . "
             ORDER BY e.created DESC
@@ -579,9 +594,9 @@ class DashboardAjaxAPI extends AjaxController {
 
         $html = $this->buildPDFTable(
             sprintf(__('Agent: %s - Replies Report'), $staff->getName()->getOriginal()),
-            array(__('Entry ID'), __('Ticket #'), __('Agent'), __('Reply'), __('Date')),
+            array(__('Entry ID'), __('Ticket #'), __('Agent'), __('Subject'), __('Reply Message'), __('Ticket Creation Date'), __('Reply Date')),
             $sql,
-            array('entry_id', 'ticket_number', 'agent_name', 'reply_message', 'reply_date'),
+            array('entry_id', 'ticket_number', 'agent_name', 'ticket_subject', 'reply_message', 'ticket_created', 'reply_date'),
             true // Strip HTML from reply
         );
 

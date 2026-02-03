@@ -8,7 +8,7 @@
     php manage.php --help
 
     for detailed and updated getting started information.
-
+\
     Jared Hancock <jared@osticket.com>
     Copyright (c)  2006-2015 osTicket
     http://www.osticket.com
