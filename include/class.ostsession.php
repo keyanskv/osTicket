@@ -27,8 +27,9 @@ class osTicketSession {
         // session name/ssid
         if ($name && strcmp($this->name, $name))
             $this->name = $name;
+        // Session ttl cannot exceed php.ini maxlifetime setting
         $maxlife =  ini_get('session.gc_maxlifetime');
-        $this->ttl = $ttl ?: ($maxlife ?: SESSION_TTL);
+        $this->ttl = min($ttl ?: ($maxlife ?: SESSION_TTL), $maxlife);
         // Set osTicket specific session name/sessid
         session_name($this->name);
         // Set Default cookie Params before we start the session
@@ -331,7 +332,7 @@ class DatabaseSessionRecord extends VerySimpleModel
         return $this->session_id;
     }
 
-    public function setData(string $data = null) {
+    public function setData(?string $data = null) {
         $this->session_data = $data;
         return $this;
     }
@@ -422,7 +423,7 @@ class DatabaseSessionRecord extends VerySimpleModel
         }
         catch (DoesNotExist $e) {
             // We're auto-creating model (unsaved) when one doesn't exist?
-            $record = $autocreate ? self::create($id) : null;
+            $record = ($autocreate && ctype_alnum($id)) ? self::create($id) : null;
         }
         catch (OrmException | Exception $ex) {
             // This could happen if more than one record exits in the
@@ -650,7 +651,7 @@ implements osTicket\Session\SessionRecordInterface {
         return $this->data->data;
     }
 
-    public function setData(string $data = null) {
+    public function setData(?string $data = null) {
         $this->data->data = $data;
     }
 
