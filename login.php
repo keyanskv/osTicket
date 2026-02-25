@@ -22,6 +22,7 @@ define('CLIENTINC_DIR',INCLUDE_DIR.'client/');
 define('OSTCLIENTINC',TRUE); //make includes happy
 
 require_once(INCLUDE_DIR.'class.client.php');
+require_once(INCLUDE_DIR.'class.staff.php');
 require_once(INCLUDE_DIR.'class.ticket.php');
 
 if ($cfg->getClientRegistrationMode() == 'disabled'
@@ -46,8 +47,17 @@ if ($_POST) {
 }
 
 if ($_POST && isset($_POST['luser'])) {
+    $utype = $_POST['utype'] ?? 'customer';
     if (!$_POST['luser'])
         $errors['err'] = __('Valid username or email address is required');
+    elseif ($utype != 'customer') {
+        // Staff/Engineer/Admin login
+        if (Validator::is_userid(trim($_POST['luser']), $errors['err'], false)
+                && ($user = StaffAuthenticationBackend::process(trim($_POST['luser']),
+                    substr($_POST['lpasswd'], 0, 128), $errors))) {
+            Http::redirect(ROOT_PATH . 'scp/index.php');
+        }
+    }
     elseif (Validator::is_userid(trim($_POST['luser']), $errors['err'], false)
             && ($user = UserAuthenticationBackend::process(trim($_POST['luser']),
                 substr($_POST['lpasswd'], 0, 128), $errors))) {

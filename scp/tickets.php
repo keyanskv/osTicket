@@ -22,6 +22,7 @@ require_once(INCLUDE_DIR.'class.canned.php');
 require_once(INCLUDE_DIR.'class.json.php');
 require_once(INCLUDE_DIR.'class.dynamic_forms.php');
 require_once(INCLUDE_DIR.'class.export.php');       // For paper sizes
+require_once(INCLUDE_DIR.'class.expense.php');
 
 
 
@@ -248,6 +249,17 @@ if($_POST && !$errors):
                 $errors['err']=sprintf('%s %s',
                     __('Unable to post the reply.'),
                     __('Correct any errors below and try again.'));
+            }
+            break;
+        case 'add_expense':
+            $vars = $_POST;
+            $vars['ticket_id'] = $ticket->getId();
+            $vars['staff_id'] = $thisstaff->getId();
+            if ($expense = TicketExpense::create($vars, $errors)) {
+                $msg = __('Expense added successfully');
+                $redirect = 'tickets.php?id='.$ticket->getId().'#expenses';
+            } else {
+                $errors['err'] = __('Unable to add expense. Correct any errors below.');
             }
             break;
         case 'postnote': /* Post Internal Note */

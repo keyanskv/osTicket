@@ -22,6 +22,11 @@ if ($content) {
 <div style="display:table-row">
     <div class="login-box">
     <strong><?php echo Format::htmlchars($errors['login']); ?></strong>
+    <div style="margin-bottom:10px;">
+        <label><input type="radio" name="utype" value="customer" checked> <?php echo __('Customer'); ?></label> &nbsp;
+        <label><input type="radio" name="utype" value="engineer"> <?php echo __('Engineer'); ?></label> &nbsp;
+        <label><input type="radio" name="utype" value="admin"> <?php echo __('Admin'); ?></label>
+    </div>
     <div>
         <input id="username" placeholder="<?php echo __('Email or Username'); ?>" type="text" name="luser" size="30" value="<?php echo $email; ?>" class="nowarn">
     </div>

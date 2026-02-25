@@ -1131,7 +1131,20 @@ class UserAccount extends VerySimpleModel {
     }
 
     function isActive() {
-        return (!$this->isLocked() && $this->isConfirmed());
+        return (!$this->isLocked() && $this->isConfirmed() && !$this->isPendingApproval());
+    }
+
+    function isPendingApproval() {
+        return $this->hasStatus(UserAccountStatus::PENDING_APPROVAL);
+    }
+
+    function setPendingApproval() {
+        return $this->setStatus(UserAccountStatus::PENDING_APPROVAL);
+    }
+
+    function approve() {
+        $this->clearStatus(UserAccountStatus::PENDING_APPROVAL);
+        return $this->save();
     }
 
     function forcePasswdReset() {
@@ -1444,6 +1457,7 @@ class UserAccountStatus {
     const LOCKED                = 0x0002;
     const REQUIRE_PASSWD_RESET  = 0x0004;
     const FORBID_PASSWD_RESET   = 0x0008;
+    const PENDING_APPROVAL      = 0x0010;
 
     function __construct($flag) {
         $this->flag = $flag;
@@ -1461,13 +1475,17 @@ class UserAccountStatus {
         return $this->check(self::CONFIRMED);
     }
 
+    function isPendingApproval() {
+        return $this->check(self::PENDING_APPROVAL);
+    }
+
     function __toString() {
 
         if ($this->isLocked())
             return __('Locked (Administrative)');
 
-        if (!$this->isConfirmed())
-            return __('Locked (Pending Activation)');
+        if ($this->isPendingApproval())
+            return __('Pending Approval');
 
         // ... Other flags here (password reset, etc).
 

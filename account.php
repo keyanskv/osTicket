@@ -103,8 +103,11 @@ elseif ($_POST) {
         if (!($acct = ClientAccount::createForUser($user)))
             $errors['err'] = __('Unable to create new account.')
                 .' '.__('Internal error occurred');
-        elseif (!$acct->update($_POST, $errors))
-            $errors['err'] = __('Errors configuring your profile. See messages below');
+        else {
+            $acct->setPendingApproval();
+            if (!$acct->update($_POST, $errors))
+                $errors['err'] = __('Errors configuring your profile. See messages below');
+        }
     }
 
     if (!$errors) {

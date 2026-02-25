@@ -745,6 +745,7 @@ $tcount = $ticket->getThreadEntries($types) ? $ticket->getThreadEntries($types)-
         if ($ticket->getNumTasks())
             echo sprintf('&nbsp;(<span id="ticket-tasks-count">%d</span>)', $ticket->getNumTasks());
         ?></a></li>
+    <li><a id="ticket-expenses-tab" href="#expenses"><?php echo __('Expenses'); ?></a></li>
     <?php
     if ((count($children) != 0 || $ticket->isChild())) { ?>
     <li><a href="#relations" id="ticket-relations-tab"
@@ -1221,6 +1222,73 @@ if ($errors['err'] && isset($_POST['a'])) {
    </form>
    <?php } ?>
  </div>
+    <div id="expenses" class="hidden tab_content">
+        <h3><?php echo __('Ticket Expenses'); ?></h3>
+        <table class="list" border="0" cellspacing="1" cellpadding="2" width="940">
+            <thead>
+                <tr>
+                    <th width="150"><?php echo __('Date'); ?></th>
+                    <th width="150"><?php echo __('Staff'); ?></th>
+                    <th width="100"><?php echo __('Amount'); ?></th>
+                    <th><?php echo __('Description'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $expenses = TicketExpense::getForTicket($ticket->getId());
+                $total = 0;
+                if ($expenses && $expenses->count()) {
+                    foreach ($expenses as $ex) {
+                        $total += $ex->getAmount();
+                        ?>
+                        <tr>
+                            <td><?php echo Format::datetime($ex->getCreateDate()); ?></td>
+                            <td><?php echo Format::htmlchars($ex->staff->getName()); ?></td>
+                            <td><?php echo number_format($ex->getAmount(), 2); ?></td>
+                            <td><?php echo Format::htmlchars($ex->getDescription()); ?></td>
+                        </tr>
+                        <?php
+                    }
+                } else { ?>
+                    <tr>
+                        <td colspan="4"><?php echo __('No expenses found for this ticket.'); ?></td>
+                    </tr>
+                <?php } ?>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2"><strong><?php echo __('Total'); ?></strong></td>
+                    <td colspan="2"><strong><?php echo number_format($total, 2); ?></strong></td>
+                </tr>
+            </tfoot>
+        </table>
+        <br/>
+        <h4><?php echo __('Add New Expense'); ?></h4>
+        <form action="tickets.php?id=<?php echo $ticket->getId(); ?>#expenses" method="post">
+            <?php csrf_token(); ?>
+            <input type="hidden" name="id" value="<?php echo $ticket->getId(); ?>">
+            <input type="hidden" name="a" value="add_expense">
+            <table width="100%" border="0" cellspacing="0" cellpadding="3">
+                <tr>
+                    <td width="120"><?php echo __('Amount'); ?>:</td>
+                    <td>
+                        <input type="text" name="amount" size="10" value="">
+                        &nbsp;<span class="error">*&nbsp;<?php echo $errors['amount']; ?></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td width="120" style="vertical-align:top"><?php echo __('Description'); ?>:</td>
+                    <td>
+                        <textarea name="description" cols="60" rows="3"></textarea>
+                        &nbsp;<span class="error">*&nbsp;<?php echo $errors['description']; ?></span>
+                    </td>
+                </tr>
+            </table>
+            <p style="padding-left:120px;">
+                <input type="submit" value="<?php echo __('Add Expense'); ?>">
+            </p>
+        </form>
+    </div>
  </div>
 </div>
 <div style="display:none;" class="dialog" id="print-options">

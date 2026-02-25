@@ -72,6 +72,14 @@ if ($_POST) {
             else
                 $errors['err'] = sprintf('%s - %s', __('Unable to send account password reset email'), __('Please try again!'));
             break;
+        case 'approve':
+            if (!$user || !$user->getAccount())
+                $errors['err'] = sprintf(__('%s: Unknown or invalid'), __('end user account'));
+            elseif ($user->getAccount()->approve())
+                $msg = sprintf(__('Account for %s successfully approved'), $user->getName());
+            else
+                $errors['err'] = sprintf('%s - %s', __('Unable to approve account'), __('Please try again!'));
+            break;
         case 'mass_process':
             if (!$_POST['ids'] || !is_array($_POST['ids']) || !count($_POST['ids'])) {
                 $errors['err'] = sprintf(__('You must select at least %s.'),

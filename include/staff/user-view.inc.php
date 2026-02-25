@@ -42,6 +42,13 @@ $extras = new ArrayObject();
               <ul>
                 <?php
                 if ($account) {
+                    if ($account->isPendingApproval()) {
+                        ?>
+                    <li><a class="confirm-action" href="#approve"><i
+                        class="icon-ok-sign"></i>
+                        <?php echo __('Approve Account'); ?></a></li>
+                    <?php
+                    }
                     if (!$account->isConfirmed()) {
                         ?>
                     <li><a class="confirm-action" href="#confirmlink"><i
@@ -184,6 +191,11 @@ if ($thisstaff->hasPerm(User::PERM_EDIT)) { ?>
     <p class="confirm-action" style="display:none;" id="pwreset-confirm">
         <?php echo sprintf(__(
         'Are you sure you want to send a <b>Password Reset Link</b> to <em> %s </em>?'),
+        $user->getEmail()); ?>
+    </p>
+    <p class="confirm-action" style="display:none;" id="approve-confirm">
+        <?php echo sprintf(__(
+        'Are you sure you want to <b>Approve</b> <em> %s </em>?'),
         $user->getEmail()); ?>
     </p>
     <div><?php echo __('Please confirm to continue.'); ?></div>
