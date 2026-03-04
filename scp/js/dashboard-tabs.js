@@ -64,9 +64,15 @@
             // Close results panel
             $(document).on('click', '.close-results-btn', function (e) {
                 e.preventDefault();
-                $('#dashboard-results-panel').slideUp();
                 self.currentItem = null;
                 self.currentItemType = null;
+            });
+
+            // Report period switching
+            $(document).on('click', '.period-btn', function (e) {
+                e.preventDefault();
+                var period = $(this).data('period');
+                self.loadReport(period);
             });
         },
 
@@ -85,6 +91,11 @@
             $('#dashboard-results-panel').hide();
             this.currentItem = null;
             this.currentItemType = null;
+
+            // If switching to report tab, load default report (daily)
+            if (tab === 'report') {
+                this.loadReport('daily');
+            }
         },
 
         loadDepartments: function () {
@@ -267,6 +278,75 @@
             }
 
             this.showResults(html);
+        },
+
+        loadReport: function (period) {
+            var self = this;
+            this.currentItem = period;
+            this.currentItemType = 'report';
+
+            // Update period buttons
+            $('.period-btn').removeClass('active');
+            $('.period-btn[data-period="' + period + '"]').addClass('active');
+
+            var html = '<div class="results-loading">' +
+                '<i class="icon-spinner icon-spin icon-2x"></i>' +
+                '<p>Loading ' + period + ' report...</p></div>';
+            $('#report-results').html(html);
+
+            $.ajax({
+                url: 'ajax.php/dashboard/report/agent-replies/' + period,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    self.renderReport(data);
+                },
+                error: function (xhr) {
+                    $('#report-results').html('<p class="error-msg">Error loading report</p>');
+                }
+            });
+        },
+
+        renderReport: function (data) {
+            var html = '<div class="results-header">' +
+                '<h3><i class="icon-bar-chart"></i> ' + this.escapeHtml(data.period) +
+                ' <span class="count">(' + data.count + ' agents)</span></h3>' +
+                '<div class="results-actions">' +
+                '<button class="export-report-csv-btn action-button" title="Export CSV"><i class="icon-download-alt"></i> CSV</button> ' +
+                '<button class="export-report-pdf-btn action-button" title="Export PDF"><i class="icon-file-text"></i> PDF</button> ' +
+                '</div></div>';
+
+            if (data.report && data.report.length > 0) {
+                html += '<div class="table-responsive"><table class="results-table">' +
+                    '<thead><tr>' +
+                    '<th>Agent</th>' +
+                    '<th>Replies</th>' +
+                    '<th>Last Reply Date</th>' +
+                    '</tr></thead><tbody>';
+
+                $.each(data.report, function (i, item) {
+                    html += '<tr>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.agent) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.replies) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.last_reply) + '</td>' +
+                        '</tr>';
+                });
+
+                html += '</tbody></table></div>';
+            } else {
+                html += '<p class="no-results">No agent replies found for this period</p>';
+            }
+
+            $('#report-results').html(html);
+
+            // Bind export events for report (since they are dynamic)
+            var self = this;
+            $('.export-report-csv-btn').off('click').on('click', function () {
+                window.location.href = 'ajax.php/dashboard/report/agent-replies/' + self.currentItem + '/export/csv';
+            });
+            $('.export-report-pdf-btn').off('click').on('click', function () {
+                window.location.href = 'ajax.php/dashboard/report/agent-replies/' + self.currentItem + '/export/pdf';
+            });
         },
 
         loadAgents: function () {

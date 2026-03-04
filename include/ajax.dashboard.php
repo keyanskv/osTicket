@@ -604,6 +604,156 @@ class DashboardAjaxAPI extends AjaxController {
     }
 
     /**
+     * Get agent reply report by period
+     */
+    function getAgentReplyReport($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "e.type = 'R'";
+        switch ($period) {
+            case 'daily':
+                $where .= " AND DATE(e.created) = CURDATE()";
+                $period_name = __('Today');
+                break;
+            case 'weekly':
+                $where .= " AND YEARWEEK(e.created, 1) = YEARWEEK(CURDATE(), 1)";
+                $period_name = __('This Week');
+                break;
+            case 'monthly':
+                $where .= " AND MONTH(e.created) = MONTH(CURDATE()) AND YEAR(e.created) = YEAR(CURDATE())";
+                $period_name = __('This Month');
+                break;
+            case 'yearly':
+                $where .= " AND YEAR(e.created) = YEAR(CURDATE())";
+                $period_name = __('This Year');
+                break;
+            default:
+                Http::response(400, 'Invalid period');
+        }
+
+        $sql = "SELECT 
+                CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
+                COUNT(e.id) AS reply_count,
+                MAX(e.created) AS last_reply
+            FROM " . THREAD_ENTRY_TABLE . " e
+            LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            WHERE " . $where . "
+            GROUP BY e.staff_id
+            ORDER BY reply_count DESC";
+
+        $report = array();
+        if (($res = db_query($sql)) && db_num_rows($res)) {
+            while ($row = db_fetch_array($res)) {
+                $report[] = array(
+                    'agent' => $row['agent_name'] ?: __('Unknown'),
+                    'replies' => $row['reply_count'],
+                    'last_reply' => Format::datetime($row['last_reply'])
+                );
+            }
+        }
+
+        return $this->json_encode(array(
+            'period' => $period_name,
+            'report' => $report,
+            'count' => count($report)
+        ));
+    }
+
+    /**
+     * Export agent reply report as CSV
+     */
+    function exportAgentReplyReportCSV($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "e.type = 'R'";
+        $period_slug = $period;
+        switch ($period) {
+            case 'daily': $where .= " AND DATE(e.created) = CURDATE()"; break;
+            case 'weekly': $where .= " AND YEARWEEK(e.created, 1) = YEARWEEK(CURDATE(), 1)"; break;
+            case 'monthly': $where .= " AND MONTH(e.created) = MONTH(CURDATE()) AND YEAR(e.created) = YEAR(CURDATE())"; break;
+            case 'yearly': $where .= " AND YEAR(e.created) = YEAR(CURDATE())"; break;
+        }
+
+        $filename = sprintf('agent-replies-%s-%s.csv', $period_slug, date('Ymd'));
+        
+        $sql = "SELECT 
+                CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
+                COUNT(e.id) AS reply_count,
+                MAX(e.created) AS last_reply
+            FROM " . THREAD_ENTRY_TABLE . " e
+            LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            WHERE " . $where . "
+            GROUP BY e.staff_id
+            ORDER BY reply_count DESC";
+
+        $headers = array(__('Agent'), __('Replies'), __('Last Reply Date'));
+
+        Http::download($filename, 'text/csv');
+        $output = fopen('php://output', 'w');
+        fputs($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+        fputcsv($output, $headers);
+
+        if (($res = db_query($sql)) && db_num_rows($res)) {
+            while ($row = db_fetch_array($res)) {
+                fputcsv($output, array(
+                    $row['agent_name'] ?: __('Unknown'),
+                    $row['reply_count'],
+                    Format::datetime($row['last_reply'])
+                ));
+            }
+        }
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Export agent reply report as PDF
+     */
+    function exportAgentReplyReportPDF($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "e.type = 'R'";
+        $period_name = '';
+        switch ($period) {
+            case 'daily': $where .= " AND DATE(e.created) = CURDATE()"; $period_name = __('Today'); break;
+            case 'weekly': $where .= " AND YEARWEEK(e.created, 1) = YEARWEEK(CURDATE(), 1)"; $period_name = __('This Week'); break;
+            case 'monthly': $where .= " AND MONTH(e.created) = MONTH(CURDATE()) AND YEAR(e.created) = YEAR(CURDATE())"; $period_name = __('This Month'); break;
+            case 'yearly': $where .= " AND YEAR(e.created) = YEAR(CURDATE())"; $period_name = __('This Year'); break;
+        }
+
+        require_once(INCLUDE_DIR . 'class.pdf.php');
+        $filename = sprintf('agent-replies-%s-%s.pdf', $period, date('Ymd'));
+
+        $sql = "SELECT 
+                CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
+                COUNT(e.id) AS reply_count,
+                MAX(e.created) AS last_reply
+            FROM " . THREAD_ENTRY_TABLE . " e
+            LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            WHERE " . $where . "
+            GROUP BY e.staff_id
+            ORDER BY reply_count DESC";
+
+        $html = $this->buildPDFTable(
+            sprintf(__('Agent Replies Report - %s'), $period_name),
+            array(__('Agent'), __('Replies'), __('Last Reply')),
+            $sql,
+            array('agent_name', 'reply_count', 'last_reply')
+        );
+
+        $this->outputPDF($html, $filename);
+    }
+
+    /**
      * Helper: Build PDF table HTML
      */
     private function buildPDFTable($title, $headers, $sql, $fields, $stripHtml = false) {

@@ -335,7 +335,11 @@ $dispatcher = patterns('',
         url_get('^agents$', 'getAgents'),
         url_get('^agents/(?P<staff_id>\d+)/replies$', 'getAgentReplies'),
         url_get('^agents/(?P<staff_id>\d+)/export/csv$', 'exportAgentCSV'),
-        url_get('^agents/(?P<staff_id>\d+)/export/pdf$', 'exportAgentPDF')
+        url_get('^agents/(?P<staff_id>\d+)/export/pdf$', 'exportAgentPDF'),
+        // Agent Reply Reports
+        url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)$', 'getAgentReplyReport'),
+        url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)/export/csv$', 'exportAgentReplyReportCSV'),
+        url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)/export/pdf$', 'exportAgentReplyReportPDF')
     ))
 );
 
