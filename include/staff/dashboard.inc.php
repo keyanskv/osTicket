@@ -188,7 +188,11 @@ foreach ($groups as $g=>$desc) {
                     <i class="icon-user"></i>
                     <span><?php echo __('Agents'); ?></span>
                 </button>
-                <button class="tab-btn" data-tab="report">
+                <!-- <button class="tab-btn" data-tab="report">
+                    <i class="icon-bar-chart"></i>
+                    <span><?php echo __(''); ?></span>
+                </button> -->
+                <button class="tab-btn" data-tab="creation">
                     <i class="icon-bar-chart"></i>
                     <span><?php echo __('Report'); ?></span>
                 </button>
@@ -252,6 +256,27 @@ foreach ($groups as $g=>$desc) {
                 </div>
             </div>
             <div id="report-results">
+                <div class="results-placeholder">
+                    <p><?php echo __('Select a period to load the report'); ?></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ticket Creation Tab -->
+        <div class="tab-content-panel" id="tab-creation" style="display: none;">
+            <div class="tab-panel-header">
+                <i class="icon-plus-sign"></i>
+                <h5><?php echo __('Ticket Creation Reports'); ?></h5>
+            </div>
+            <div class="report-controls">
+                <div class="report-periods">
+                    <button class="period-btn active" data-period="daily"><?php echo __('Daily'); ?></button>
+                    <button class="period-btn" data-period="weekly"><?php echo __('Weekly'); ?></button>
+                    <button class="period-btn" data-period="monthly"><?php echo __('Monthly'); ?></button>
+                    <button class="period-btn" data-period="yearly"><?php echo __('Yearly'); ?></button>
+                </div>
+            </div>
+            <div id="creation-report-results">
                 <div class="results-placeholder">
                     <p><?php echo __('Select a period to load the report'); ?></p>
                 </div>

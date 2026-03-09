@@ -339,7 +339,11 @@ $dispatcher = patterns('',
         // Agent Reply Reports
         url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)$', 'getAgentReplyReport'),
         url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)/export/csv$', 'exportAgentReplyReportCSV'),
-        url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)/export/pdf$', 'exportAgentReplyReportPDF')
+        url_get('^report/agent-replies/(?P<period>daily|weekly|monthly|yearly)/export/pdf$', 'exportAgentReplyReportPDF'),
+        // Ticket Creation Reports
+        url_get('^report/ticket-creation/(?P<period>daily|weekly|monthly|yearly)$', 'getTicketCreationReport'),
+        url_get('^report/ticket-creation/(?P<period>daily|weekly|monthly|yearly)/export/csv$', 'exportTicketCreationReportCSV'),
+        url_get('^report/ticket-creation/(?P<period>daily|weekly|monthly|yearly)/export/pdf$', 'exportTicketCreationReportPDF')
     ))
 );
 

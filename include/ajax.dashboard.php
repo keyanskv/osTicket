@@ -635,22 +635,38 @@ class DashboardAjaxAPI extends AjaxController {
         }
 
         $sql = "SELECT 
+                e.id AS entry_id,
+                t.number AS ticket_number,
+                t.ticket_id,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
-                COUNT(e.id) AS reply_count,
-                MAX(e.created) AS last_reply
+                e.body AS reply_message,
+                e.created AS reply_date
             FROM " . THREAD_ENTRY_TABLE . " e
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
+            LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE " . $where . "
-            GROUP BY e.staff_id
-            ORDER BY reply_count DESC";
+            ORDER BY e.created DESC
+            LIMIT 500";
 
         $report = array();
         if (($res = db_query($sql)) && db_num_rows($res)) {
             while ($row = db_fetch_array($res)) {
+                $body = Format::striptags($row['reply_message']);
+                $body = Format::truncate($body, 150);
+                
                 $report[] = array(
+                    'entry_id' => $row['entry_id'],
+                    'ticket_id' => $row['ticket_id'],
+                    'ticket_number' => $row['ticket_number'],
+                    'ticket_subject' => Format::truncate($row['ticket_subject'], 50),
                     'agent' => $row['agent_name'] ?: __('Unknown'),
-                    'replies' => $row['reply_count'],
-                    'last_reply' => Format::datetime($row['last_reply'])
+                    'reply_message' => $body,
+                    'ticket_created' => Format::datetime($row['ticket_created']),
+                    'reply_date' => Format::datetime($row['reply_date'])
                 );
             }
         }
@@ -683,16 +699,30 @@ class DashboardAjaxAPI extends AjaxController {
         $filename = sprintf('agent-replies-%s-%s.csv', $period_slug, date('Ymd'));
         
         $sql = "SELECT 
+                e.id AS entry_id,
+                t.number AS ticket_number,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
-                COUNT(e.id) AS reply_count,
-                MAX(e.created) AS last_reply
+                e.body AS reply_message,
+                e.created AS reply_date
             FROM " . THREAD_ENTRY_TABLE . " e
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
+            LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE " . $where . "
-            GROUP BY e.staff_id
-            ORDER BY reply_count DESC";
+            ORDER BY e.created DESC";
 
-        $headers = array(__('Agent'), __('Replies'), __('Last Reply Date'));
+        $headers = array(
+            __('Entry ID'),
+            __('Ticket #'),
+            __('Agent'),
+            __('Subject'),
+            __('Reply Message'),
+            __('Ticket Creation Date'),
+            __('Reply Date')
+        );
 
         Http::download($filename, 'text/csv');
         $output = fopen('php://output', 'w');
@@ -701,10 +731,15 @@ class DashboardAjaxAPI extends AjaxController {
 
         if (($res = db_query($sql)) && db_num_rows($res)) {
             while ($row = db_fetch_array($res)) {
+                $body = Format::striptags($row['reply_message']);
                 fputcsv($output, array(
+                    $row['entry_id'],
+                    $row['ticket_number'],
                     $row['agent_name'] ?: __('Unknown'),
-                    $row['reply_count'],
-                    Format::datetime($row['last_reply'])
+                    $row['ticket_subject'],
+                    $body,
+                    Format::datetime($row['ticket_created']),
+                    Format::datetime($row['reply_date'])
                 ));
             }
         }
@@ -734,20 +769,218 @@ class DashboardAjaxAPI extends AjaxController {
         $filename = sprintf('agent-replies-%s-%s.pdf', $period, date('Ymd'));
 
         $sql = "SELECT 
+                e.id AS entry_id,
+                t.number AS ticket_number,
+                t.created AS ticket_created,
+                tc.subject AS ticket_subject,
                 CONCAT(s.firstname, ' ', s.lastname) AS agent_name,
-                COUNT(e.id) AS reply_count,
-                MAX(e.created) AS last_reply
+                e.body AS reply_message,
+                e.created AS reply_date
             FROM " . THREAD_ENTRY_TABLE . " e
             LEFT JOIN " . STAFF_TABLE . " s ON e.staff_id = s.staff_id
+            LEFT JOIN " . THREAD_TABLE . " th ON e.thread_id = th.id
+            LEFT JOIN " . TICKET_TABLE . " t ON th.object_id = t.ticket_id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
             WHERE " . $where . "
-            GROUP BY e.staff_id
-            ORDER BY reply_count DESC";
+            ORDER BY e.created DESC
+            LIMIT 500";
 
         $html = $this->buildPDFTable(
-            sprintf(__('Agent Replies Report - %s'), $period_name),
-            array(__('Agent'), __('Replies'), __('Last Reply')),
+            sprintf(__('Agent Replies Detailed Report - %s'), $period_name),
+            array(__('Entry ID'), __('Ticket #'), __('Agent'), __('Subject'), __('Reply Message'), __('Ticket Created'), __('Reply Date')),
             $sql,
-            array('agent_name', 'reply_count', 'last_reply')
+            array('entry_id', 'ticket_number', 'agent_name', 'ticket_subject', 'reply_message', 'ticket_created', 'reply_date'),
+            true // Strip HTML from reply
+        );
+
+        $this->outputPDF($html, $filename);
+    }
+
+    /**
+     * Get ticket creation report by period
+     */
+    function getTicketCreationReport($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "1=1";
+        switch ($period) {
+            case 'daily':
+                $where .= " AND DATE(t.created) = CURDATE()";
+                $period_name = __('Today');
+                break;
+            case 'weekly':
+                $where .= " AND YEARWEEK(t.created, 1) = YEARWEEK(CURDATE(), 1)";
+                $period_name = __('This Week');
+                break;
+            case 'monthly':
+                $where .= " AND MONTH(t.created) = MONTH(CURDATE()) AND YEAR(t.created) = YEAR(CURDATE())";
+                $period_name = __('This Month');
+                break;
+            case 'yearly':
+                $where .= " AND YEAR(t.created) = YEAR(CURDATE())";
+                $period_name = __('This Year');
+                break;
+            default:
+                Http::response(400, 'Invalid period');
+        }
+
+        $sql = "SELECT 
+                t.ticket_id,
+                t.number AS ticket_number,
+                u.name AS user_name,
+                tc.subject,
+                ts.name AS status_name,
+                ht.topic AS topic_name,
+                d.name AS dept_name,
+                t.created
+            FROM " . TICKET_TABLE . " t
+            LEFT JOIN " . USER_TABLE . " u ON t.user_id = u.id
+            LEFT JOIN " . TICKET_STATUS_TABLE . " ts ON t.status_id = ts.id
+            LEFT JOIN " . TOPIC_TABLE . " ht ON t.topic_id = ht.topic_id
+            LEFT JOIN " . DEPT_TABLE . " d ON t.dept_id = d.id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
+            WHERE " . $where . "
+            ORDER BY t.created DESC
+            LIMIT 500";
+
+        $report = array();
+        if (($res = db_query($sql)) && db_num_rows($res)) {
+            while ($row = db_fetch_array($res)) {
+                $report[] = array(
+                    'ticket_id' => $row['ticket_id'],
+                    'ticket_number' => $row['ticket_number'],
+                    'user' => $row['user_name'] ?: __('Guest'),
+                    'subject' => Format::truncate($row['subject'], 50),
+                    'status' => $row['status_name'],
+                    'topic' => $row['topic_name'] ?: __('N/A'),
+                    'dept' => $row['dept_name'],
+                    'created' => Format::datetime($row['created'])
+                );
+            }
+        }
+
+        return $this->json_encode(array(
+            'period' => $period_name,
+            'report' => $report,
+            'count' => count($report)
+        ));
+    }
+
+    /**
+     * Export ticket creation report as CSV
+     */
+    function exportTicketCreationReportCSV($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "1=1";
+        switch ($period) {
+            case 'daily': $where .= " AND DATE(t.created) = CURDATE()"; break;
+            case 'weekly': $where .= " AND YEARWEEK(t.created, 1) = YEARWEEK(CURDATE(), 1)"; break;
+            case 'monthly': $where .= " AND MONTH(t.created) = MONTH(CURDATE()) AND YEAR(t.created) = YEAR(CURDATE())"; break;
+            case 'yearly': $where .= " AND YEAR(t.created) = YEAR(CURDATE())"; break;
+        }
+
+        $filename = sprintf('ticket-creation-%s-%s.csv', $period, date('Ymd'));
+        
+        $sql = "SELECT 
+                t.number AS ticket_number,
+                u.name AS user_name,
+                tc.subject,
+                ts.name AS status_name,
+                ht.topic AS topic_name,
+                d.name AS dept_name,
+                t.created
+            FROM " . TICKET_TABLE . " t
+            LEFT JOIN " . USER_TABLE . " u ON t.user_id = u.id
+            LEFT JOIN " . TICKET_STATUS_TABLE . " ts ON t.status_id = ts.id
+            LEFT JOIN " . TOPIC_TABLE . " ht ON t.topic_id = ht.topic_id
+            LEFT JOIN " . DEPT_TABLE . " d ON t.dept_id = d.id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
+            WHERE " . $where . "
+            ORDER BY t.created DESC";
+
+        $headers = array(
+            __('Ticket #'),
+            __('User'),
+            __('Subject'),
+            __('Status'),
+            __('Help Topic'),
+            __('Department'),
+            __('Created Date')
+        );
+
+        Http::download($filename, 'text/csv');
+        $output = fopen('php://output', 'w');
+        fputs($output, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
+        fputcsv($output, $headers);
+
+        if (($res = db_query($sql)) && db_num_rows($res)) {
+            while ($row = db_fetch_array($res)) {
+                fputcsv($output, array(
+                    $row['ticket_number'],
+                    $row['user_name'] ?: __('Guest'),
+                    $row['subject'],
+                    $row['status_name'],
+                    $row['topic_name'] ?: __('N/A'),
+                    $row['dept_name'],
+                    Format::datetime($row['created'])
+                ));
+            }
+        }
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Export ticket creation report as PDF
+     */
+    function exportTicketCreationReportPDF($period) {
+        global $thisstaff;
+
+        if (!$thisstaff)
+            Http::response(403, 'Access denied');
+
+        $where = "1=1";
+        $period_name = '';
+        switch ($period) {
+            case 'daily': $where .= " AND DATE(t.created) = CURDATE()"; $period_name = __('Today'); break;
+            case 'weekly': $where .= " AND YEARWEEK(t.created, 1) = YEARWEEK(CURDATE(), 1)"; $period_name = __('This Week'); break;
+            case 'monthly': $where .= " AND MONTH(t.created) = MONTH(CURDATE()) AND YEAR(t.created) = YEAR(CURDATE())"; $period_name = __('This Month'); break;
+            case 'yearly': $where .= " AND YEAR(t.created) = YEAR(CURDATE())"; $period_name = __('This Year'); break;
+        }
+
+        require_once(INCLUDE_DIR . 'class.pdf.php');
+        $filename = sprintf('ticket-creation-%s-%s.pdf', $period, date('Ymd'));
+
+        $sql = "SELECT 
+                t.number AS ticket_number,
+                u.name AS user_name,
+                tc.subject,
+                ts.name AS status_name,
+                ht.topic AS topic_name,
+                d.name AS dept_name,
+                t.created
+            FROM " . TICKET_TABLE . " t
+            LEFT JOIN " . USER_TABLE . " u ON t.user_id = u.id
+            LEFT JOIN " . TICKET_STATUS_TABLE . " ts ON t.status_id = ts.id
+            LEFT JOIN " . TOPIC_TABLE . " ht ON t.topic_id = ht.topic_id
+            LEFT JOIN " . DEPT_TABLE . " d ON t.dept_id = d.id
+            LEFT JOIN " . TICKET_CDATA_TABLE . " tc ON t.ticket_id = tc.ticket_id
+            WHERE " . $where . "
+            ORDER BY t.created DESC
+            LIMIT 500";
+
+        $html = $this->buildPDFTable(
+            sprintf(__('Ticket Creation Detailed Report - %s'), $period_name),
+            array(__('Ticket #'), __('User'), __('Subject'), __('Status'), __('Help Topic'), __('Department'), __('Created Date')),
+            $sql,
+            array('ticket_number', 'user_name', 'subject', 'status_name', 'topic_name', 'dept_name', 'created')
         );
 
         $this->outputPDF($html, $filename);

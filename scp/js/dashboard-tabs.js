@@ -72,7 +72,11 @@
             $(document).on('click', '.period-btn', function (e) {
                 e.preventDefault();
                 var period = $(this).data('period');
-                self.loadReport(period);
+                if (self.currentTab === 'creation') {
+                    self.loadCreationReport(period);
+                } else {
+                    self.loadReport(period);
+                }
             });
         },
 
@@ -95,6 +99,8 @@
             // If switching to report tab, load default report (daily)
             if (tab === 'report') {
                 this.loadReport('daily');
+            } else if (tab === 'creation') {
+                this.loadCreationReport('daily');
             }
         },
 
@@ -319,16 +325,29 @@
             if (data.report && data.report.length > 0) {
                 html += '<div class="table-responsive"><table class="results-table">' +
                     '<thead><tr>' +
+                    '<th>Entry ID</th>' +
+                    '<th>Ticket #</th>' +
                     '<th>Agent</th>' +
-                    '<th>Replies</th>' +
-                    '<th>Last Reply Date</th>' +
+                    '<th>Subject</th>' +
+                    '<th>Reply Message</th>' +
+                    '<th>Ticket Created Date</th>' +
+                    '<th>Reply Date</th>' +
                     '</tr></thead><tbody>';
 
                 $.each(data.report, function (i, item) {
+                    var ticketLink = item.ticket_id ?
+                        '<a href="tickets.php?id=' + item.ticket_id + '" class="ticket-link">#' +
+                        DashboardTabs.escapeHtml(item.ticket_number) + '</a>' :
+                        (DashboardTabs.escapeHtml(item.ticket_number) || '-');
+
                     html += '<tr>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.entry_id) + '</td>' +
+                        '<td>' + ticketLink + '</td>' +
                         '<td>' + DashboardTabs.escapeHtml(item.agent) + '</td>' +
-                        '<td>' + DashboardTabs.escapeHtml(item.replies) + '</td>' +
-                        '<td>' + DashboardTabs.escapeHtml(item.last_reply) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.ticket_subject) + '</td>' +
+                        '<td class="reply-message">' + DashboardTabs.escapeHtml(item.reply_message) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.ticket_created) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.reply_date) + '</td>' +
                         '</tr>';
                 });
 
@@ -346,6 +365,88 @@
             });
             $('.export-report-pdf-btn').off('click').on('click', function () {
                 window.location.href = 'ajax.php/dashboard/report/agent-replies/' + self.currentItem + '/export/pdf';
+            });
+        },
+
+        loadCreationReport: function (period) {
+            var self = this;
+            this.currentItem = period;
+            this.currentItemType = 'creation-report';
+
+            // Update period buttons
+            $('#tab-creation .period-btn').removeClass('active');
+            $('#tab-creation .period-btn[data-period="' + period + '"]').addClass('active');
+
+            var html = '<div class="results-loading">' +
+                '<i class="icon-spinner icon-spin icon-2x"></i>' +
+                '<p>Loading ticket creation report...</p></div>';
+            $('#creation-report-results').html(html);
+
+            $.ajax({
+                url: 'ajax.php/dashboard/report/ticket-creation/' + period,
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    self.renderCreationReport(data);
+                },
+                error: function (xhr) {
+                    $('#creation-report-results').html('<p class="error-msg">Error loading report</p>');
+                }
+            });
+        },
+
+        renderCreationReport: function (data) {
+            var html = '<div class="results-header">' +
+                '<h3><i class="icon-plus-sign"></i> ' + this.escapeHtml(data.period) +
+                ' <span class="count">(' + data.count + ' tickets)</span></h3>' +
+                '<div class="results-actions">' +
+                '<button class="export-creation-csv-btn action-button" title="Export CSV"><i class="icon-download-alt"></i> CSV</button> ' +
+                '<button class="export-creation-pdf-btn action-button" title="Export PDF"><i class="icon-file-text"></i> PDF</button> ' +
+                '</div></div>';
+
+            if (data.report && data.report.length > 0) {
+                html += '<div class="table-responsive"><table class="results-table">' +
+                    '<thead><tr>' +
+                    '<th>Ticket #</th>' +
+                    '<th>User</th>' +
+                    '<th>Subject</th>' +
+                    '<th>Status</th>' +
+                    '<th>Help Topic</th>' +
+                    '<th>Department</th>' +
+                    '<th>Created Date</th>' +
+                    '</tr></thead><tbody>';
+
+                $.each(data.report, function (i, item) {
+                    var ticketLink = item.ticket_id ?
+                        '<a href="tickets.php?id=' + item.ticket_id + '" class="ticket-link">#' +
+                        DashboardTabs.escapeHtml(item.ticket_number) + '</a>' :
+                        (DashboardTabs.escapeHtml(item.ticket_number) || '-');
+
+                    html += '<tr>' +
+                        '<td>' + ticketLink + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.user) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.subject) + '</td>' +
+                        '<td><span class="status-badge">' + DashboardTabs.escapeHtml(item.status) + '</span></td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.topic) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.dept) + '</td>' +
+                        '<td>' + DashboardTabs.escapeHtml(item.created) + '</td>' +
+                        '</tr>';
+                });
+
+                html += '</tbody></table></div>';
+            } else {
+                html += '<p class="no-results">No tickets found for this period</p>';
+            }
+
+            $('#creation-report-results').html(html);
+
+            // Bind export events
+            var self = this;
+            $('.export-creation-csv-btn').off('click').on('click', function () {
+                window.location.href = 'ajax.php/dashboard/report/ticket-creation/' + self.currentItem + '/export/csv';
+            });
+            $('.export-creation-pdf-btn').off('click').on('click', function () {
+                window.location.href = 'ajax.php/dashboard/report/ticket-creation/' + self.currentItem + '/export/pdf';
             });
         },
 
